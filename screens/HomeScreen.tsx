@@ -23,6 +23,7 @@ import { RemainingBadge } from '../components/RemainingBadge';
 import { useFairyTailDraw } from '../hooks/useFairyTailDraw';
 import { useGuildData } from '../hooks/useGuildData';
 import { parseBackupPayload } from '../storage/lotteryStorage';
+import { isSameOrAfterDate } from '../utils/dates';
 import { buildRankingTable, rankOrder } from '../utils/ranking';
 import { Award, AwardCollaborator, Colab, Collaborator, GuildTab, RankTier } from '../utils/types';
 import { theme } from '../utils/theme';
@@ -115,6 +116,14 @@ function findParticipationLabel(
   return record?.participated ?? false;
 }
 
+function rankWeight(rank: RankTier) {
+  return rankOrder.indexOf(rank);
+}
+
+function isColabAvailableForCollaborator(colab: Colab, collaborator: Collaborator) {
+  return isSameOrAfterDate(colab.startDate, collaborator.entryDate);
+}
+
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<GuildTab>('sorteador');
@@ -132,6 +141,7 @@ export function HomeScreen() {
     name: '',
     description: '',
   });
+  const [openCollaboratorIds, setOpenCollaboratorIds] = useState<Record<string, boolean>>({});
   const [openAwardId, setOpenAwardId] = useState<string | null>(null);
   const [awardDrafts, setAwardDrafts] = useState<Record<string, { collaboratorId: string; notes: string }>>({});
   const [banSearch, setBanSearch] = useState('');
@@ -180,6 +190,20 @@ export function HomeScreen() {
   );
   const rankingTable = useMemo(() => {
     return buildRankingTable(collaboratorStats);
+  }, [collaboratorStats]);
+  const sortedCollaboratorStats = useMemo(() => {
+    return [...collaboratorStats].sort((left, right) => {
+      const rankDifference = rankWeight(right.rank) - rankWeight(left.rank);
+      if (rankDifference !== 0) {
+        return rankDifference;
+      }
+
+      if (right.participationCount !== left.participationCount) {
+        return right.participationCount - left.participationCount;
+      }
+
+      return left.collaborator.name.localeCompare(right.collaborator.name, 'pt-BR');
+    });
   }, [collaboratorStats]);
   const filteredInactiveCollaborators = useMemo(() => {
     const search = banSearch.trim().toLocaleLowerCase('pt-BR');
@@ -443,11 +467,11 @@ export function HomeScreen() {
     return (
       <>
         <GlassCard>
-          <Text style={styles.sectionTitle}>Cadastro de Colabs</Text>
+          <Text style={styles.sectionTitle}>Cadastro de Collabs</Text>
           <TextInput
             value={colabForm.name}
             onChangeText={(value) => setColabForm((previous) => ({ ...previous, name: value }))}
-            placeholder="Nome da colab"
+            placeholder="Nome da collab"
             placeholderTextColor="rgba(255,255,255,0.35)"
             style={styles.singleInput}
           />
@@ -468,7 +492,7 @@ export function HomeScreen() {
             />
           </View>
           <View style={styles.buttonStack}>
-            <PrimaryButton label={colabForm.id ? 'Salvar colab' : 'Criar colab'} onPress={submitColab} />
+            <PrimaryButton label={colabForm.id ? 'Salvar collab' : 'Criar collab'} onPress={submitColab} />
             {colabForm.id ? (
               <Pressable onPress={resetColabForm} style={styles.secondaryButton}>
                 <Text style={styles.secondaryButtonText}>Cancelar edição</Text>
@@ -514,7 +538,7 @@ export function HomeScreen() {
                 </View>
               ))
             ) : (
-              <Text style={styles.emptyText}>Nenhuma colab cadastrada ainda.</Text>
+              <Text style={styles.emptyText}>Nenhuma collab cadastrada ainda.</Text>
             )}
           </View>
         </GlassCard>
@@ -548,76 +572,97 @@ export function HomeScreen() {
           </View>
 
           <View style={styles.sectionGap}>
-            {collaboratorStats.length ? (
-              collaboratorStats.map((item) => (
-                <View key={item.collaborator.id} style={styles.entityCard}>
-                  <View style={styles.entityHeader}>
-                    <View style={styles.flexOne}>
-                      <Text style={styles.entityTitle}>{item.collaborator.name}</Text>
-                      <Text style={styles.entityMeta}>
-                        Entrou em {formatDate(item.collaborator.entryDate)} • {item.participationCount} colab(s)
-                      </Text>
-                    </View>
-                    <View style={styles.badgeRow}>
-                      <Text style={[styles.badge, { backgroundColor: rankTone(item.rank), color: '#2b173f' }]}>
-                        Rank {item.rank}
-                      </Text>
-                      <Text style={[styles.badge, item.collaborator.active ? styles.badgeSuccess : styles.badgeMuted]}>
-                        {item.collaborator.active ? 'Ativo' : 'Inativo'}
-                      </Text>
-                    </View>
-                  </View>
+            {sortedCollaboratorStats.length ? (
+              sortedCollaboratorStats.map((item) => {
+                const isOpen = openCollaboratorIds[item.collaborator.id] ?? false;
+                const availableColabs = guildData.colabs.filter((colab) =>
+                  isColabAvailableForCollaborator(colab, item.collaborator)
+                );
 
-                  {guildData.colabs.length ? (
-                    <View style={styles.participationList}>
-                      {guildData.colabs.map((colab) => {
-                        const participated = findParticipationLabel(
-                          item.collaborator,
-                          colab,
-                          guildData.participations
-                        );
-
-                        return (
-                          <Pressable
-                            key={`${item.collaborator.id}-${colab.id}`}
-                            style={[styles.participationChip, participated && styles.participationChipActive]}
-                            onPress={() => toggleParticipation(item.collaborator.id, colab.id)}
-                          >
-                            <Text style={styles.participationTitle}>{colab.name}</Text>
-                            <Text style={styles.participationStatus}>{participated ? '✅ Participou' : '❌ Não participou'}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={styles.emptyText}>Cadastre uma colab para começar o ranking.</Text>
-                  )}
-
-                  <View style={styles.actionsRow}>
+                return (
+                  <View key={item.collaborator.id} style={styles.entityCard}>
                     <Pressable
-                      style={styles.actionChip}
+                      style={styles.entityAccordionHeader}
                       onPress={() =>
-                        setCollaboratorForm({
-                          id: item.collaborator.id,
-                          name: item.collaborator.name,
-                          entryDate: formatDate(item.collaborator.entryDate),
-                        })
+                        setOpenCollaboratorIds((previous) => ({
+                          ...previous,
+                          [item.collaborator.id]: !isOpen,
+                        }))
                       }
                     >
-                      <Text style={styles.actionText}>Editar</Text>
+                      <View style={styles.flexOne}>
+                        <Text style={styles.entityTitle}>{item.collaborator.name}</Text>
+                        <Text style={styles.entityMeta}>
+                          Entrou em {formatDate(item.collaborator.entryDate)} • {item.participationCount} collab(s)
+                        </Text>
+                      </View>
+                      <View style={styles.badgeRow}>
+                        <Text style={[styles.badge, { backgroundColor: rankTone(item.rank), color: '#2b173f' }]}>
+                          Rank {item.rank}
+                        </Text>
+                        <Text style={[styles.badge, item.collaborator.active ? styles.badgeSuccess : styles.badgeMuted]}>
+                          {item.collaborator.active ? 'Ativo' : 'Inativo'}
+                        </Text>
+                      </View>
                     </Pressable>
-                    <Pressable
-                      style={styles.actionChip}
-                      onPress={() => updateCollaboratorStatus(item.collaborator.id, !item.collaborator.active)}
-                    >
-                      <Text style={styles.actionText}>{item.collaborator.active ? 'Inativar' : 'Reativar'}</Text>
-                    </Pressable>
-                    <Pressable style={styles.actionChip} onPress={() => deleteCollaborator(item.collaborator.id)}>
-                      <Text style={styles.actionText}>Excluir</Text>
-                    </Pressable>
+
+                    {isOpen ? (
+                      <>
+                        {availableColabs.length ? (
+                          <View style={styles.participationList}>
+                            {availableColabs.map((colab) => {
+                              const participated = findParticipationLabel(
+                                item.collaborator,
+                                colab,
+                                guildData.participations
+                              );
+
+                              return (
+                                <Pressable
+                                  key={`${item.collaborator.id}-${colab.id}`}
+                                  style={[styles.participationChip, participated && styles.participationChipActive]}
+                                  onPress={() => toggleParticipation(item.collaborator.id, colab.id)}
+                                >
+                                  <Text style={styles.participationTitle}>{colab.name}</Text>
+                                  <Text style={styles.participationStatus}>
+                                    {participated ? '✅ Participou' : '❌ Não participou'}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        ) : (
+                          <Text style={styles.emptyText}>Nenhuma collab disponivel desde a entrada deste colaborador.</Text>
+                        )}
+
+                        <View style={styles.actionsRow}>
+                          <Pressable
+                            style={styles.actionChip}
+                            onPress={() =>
+                              setCollaboratorForm({
+                                id: item.collaborator.id,
+                                name: item.collaborator.name,
+                                entryDate: formatDate(item.collaborator.entryDate),
+                              })
+                            }
+                          >
+                            <Text style={styles.actionText}>Editar</Text>
+                          </Pressable>
+                          <Pressable
+                            style={styles.actionChip}
+                            onPress={() => updateCollaboratorStatus(item.collaborator.id, !item.collaborator.active)}
+                          >
+                            <Text style={styles.actionText}>{item.collaborator.active ? 'Inativar' : 'Reativar'}</Text>
+                          </Pressable>
+                          <Pressable style={styles.actionChip} onPress={() => deleteCollaborator(item.collaborator.id)}>
+                            <Text style={styles.actionText}>Excluir</Text>
+                          </Pressable>
+                        </View>
+                      </>
+                    ) : null}
                   </View>
-                </View>
-              ))
+                );
+              })
             ) : (
               <Text style={styles.emptyText}>Nenhum colaborador cadastrado ainda.</Text>
             )}
@@ -1212,6 +1257,11 @@ const styles = StyleSheet.create({
   entityHeader: {
     flexDirection: 'row',
     gap: 12,
+    alignItems: 'flex-start',
+  },
+  entityAccordionHeader: {
+    flexDirection: 'row',
+    gap: 10,
     alignItems: 'flex-start',
   },
   entityTitle: {
