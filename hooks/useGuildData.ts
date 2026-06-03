@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 
 import { exportBackupPayload, loadGuildData, normalizeGuildData, saveGuildData } from '../storage/lotteryStorage';
+import { isSameOrAfterDate } from '../utils/dates';
 import { getRankTier } from '../utils/ranking';
 import {
   Award,
@@ -95,7 +96,14 @@ export function useGuildData() {
   const collaboratorStats = useMemo(() => {
     return guildData.collaborators.map((collaborator) => {
       const participations = guildData.participations.filter(
-        (item) => item.collaboratorId === collaborator.id && item.participated
+        (item) => {
+          if (item.collaboratorId !== collaborator.id || !item.participated) {
+            return false;
+          }
+
+          const colab = guildData.colabs.find((guildColab) => guildColab.id === item.colabId);
+          return colab ? isSameOrAfterDate(colab.startDate, collaborator.entryDate) : false;
+        }
       );
 
       return {
@@ -105,7 +113,7 @@ export function useGuildData() {
         participations,
       };
     });
-  }, [guildData.collaborators, guildData.participations]);
+  }, [guildData.colabs, guildData.collaborators, guildData.participations]);
 
   async function upsertColab(input: UpdateColabInput) {
     const nextColab: Colab = {
