@@ -4,13 +4,14 @@
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "expo start",
-    "start:clear": "expo start --clear",
-    "start:tunnel": "expo start --tunnel",
-    "start:lan": "expo start --lan",
+    "start": "EXPO_UNSTABLE_HEADLESS=1 expo start",
+    "start:clear": "EXPO_UNSTABLE_HEADLESS=1 expo start --clear",
+    "start:tunnel": "EXPO_UNSTABLE_HEADLESS=1 expo start --tunnel",
+    "start:wsl": "EXPO_UNSTABLE_HEADLESS=1 expo start --tunnel",
+    "start:lan": "EXPO_UNSTABLE_HEADLESS=1 expo start --lan",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web": "EXPO_UNSTABLE_HEADLESS=1 expo start --web",
     "lint": "expo lint",
     "doctor": "expo-doctor",
     "test": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js"
@@ -18,13 +19,16 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~55.0.0",
-    "expo-blur": "~55.0.14",
-    "expo-clipboard": "~55.0.13",
-    "expo-haptics": "~55.0.14",
-    "expo-linear-gradient": "~55.0.13",
-    "expo-status-bar": "~55.0.5",
+    "expo-blur": "~55.0.16",
+    "expo-clipboard": "~55.0.15",
+    "expo-document-picker": "~55.0.15",
+    "expo-file-system": "~55.0.24",
+    "expo-haptics": "~55.0.16",
+    "expo-linear-gradient": "~55.0.16",
+    "expo-sharing": "~55.0.22",
+    "expo-status-bar": "~55.0.6",
     "react": "19.2.0",
-    "react-native": "0.83.6",
+    "react-native": "0.83.10",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-safe-area-context": "~5.6.2"
   },
@@ -32,6 +36,8 @@
     "@babel/core": "^7.28.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~55.0.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~55.0.1",
     "typescript": "~5.9.3"
   }
 }

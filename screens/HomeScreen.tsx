@@ -10,7 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassCard } from '../components/GlassCard';
@@ -175,7 +176,6 @@ export function HomeScreen() {
     deleteAward,
     upsertAwardCollaborator,
     removeAwardCollaborator,
-    copyBackup,
     shareBackup,
     replaceGuildData,
   } = useGuildData();
@@ -192,7 +192,7 @@ export function HomeScreen() {
     return buildRankingTable(collaboratorStats);
   }, [collaboratorStats]);
   const sortedCollaboratorStats = useMemo(() => {
-    return [...collaboratorStats].sort((left, right) => {
+    return collaboratorStats.filter((item) => item.collaborator.active).sort((left, right) => {
       const rankDifference = rankWeight(right.rank) - rankWeight(left.rank);
       if (rankDifference !== 0) {
         return rankDifference;
@@ -329,12 +329,63 @@ export function HomeScreen() {
     setBanReason('');
   }
 
-  async function importBackupFromClipboard() {
+  function confirmDeleteColab(colab: Colab) {
+    Alert.alert('Excluir collab', `Tem certeza que deseja excluir "${colab.name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          deleteColab(colab.id).catch(() => {
+            Alert.alert('Exclusão falhou', 'Não foi possível excluir esta collab.');
+          });
+        },
+      },
+    ]);
+  }
+
+  function confirmDeleteCollaborator(collaborator: Collaborator) {
+    Alert.alert('Excluir colaborador', `Tem certeza que deseja excluir "${collaborator.name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          deleteCollaborator(collaborator.id).catch(() => {
+            Alert.alert('Exclusão falhou', 'Não foi possível excluir este colaborador.');
+          });
+        },
+      },
+    ]);
+  }
+
+  async function exportBackupFile() {
     try {
-      const rawPayload = await Clipboard.getStringAsync();
+      await shareBackup(state);
+    } catch {
+      Alert.alert('Exportação falhou', 'Não foi possível gerar ou compartilhar o arquivo JSON de backup.');
+    }
+  }
+
+  async function importBackupFromFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/json', 'text/plain'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedFile = result.assets[0];
+      const rawPayload = await FileSystem.readAsStringAsync(selectedFile.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
 
       if (!rawPayload.trim()) {
-        Alert.alert('Importar backup', 'Não encontrei JSON na área de transferência.');
+        Alert.alert('Importar backup', 'O arquivo selecionado está vazio.');
         return;
       }
 
@@ -345,7 +396,7 @@ export function HomeScreen() {
 
       Alert.alert('Backup importado', 'Os dados da guilda e do sorteador foram restaurados.');
     } catch {
-      Alert.alert('Importação falhou', 'O conteúdo copiado não parece ser um backup JSON válido.');
+      Alert.alert('Importação falhou', 'O arquivo selecionado não parece ser um backup JSON válido.');
     }
   }
 
@@ -531,7 +582,7 @@ export function HomeScreen() {
                     <Pressable style={styles.actionChip} onPress={() => toggleColabActive(colab.id)}>
                       <Text style={styles.actionText}>{colab.active ? 'Desativar' : 'Ativar'}</Text>
                     </Pressable>
-                    <Pressable style={styles.actionChip} onPress={() => deleteColab(colab.id)}>
+                    <Pressable style={styles.actionChip} onPress={() => confirmDeleteColab(colab)}>
                       <Text style={styles.actionText}>Excluir</Text>
                     </Pressable>
                   </View>
@@ -654,7 +705,7 @@ export function HomeScreen() {
                           >
                             <Text style={styles.actionText}>{item.collaborator.active ? 'Inativar' : 'Reativar'}</Text>
                           </Pressable>
-                          <Pressable style={styles.actionChip} onPress={() => deleteCollaborator(item.collaborator.id)}>
+                          <Pressable style={styles.actionChip} onPress={() => confirmDeleteCollaborator(item.collaborator)}>
                             <Text style={styles.actionText}>Excluir</Text>
                           </Pressable>
                         </View>
@@ -949,10 +1000,10 @@ export function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.topActionRow}>
-            <Pressable style={styles.backupButton} onPress={() => shareBackup(state)}>
+            <Pressable style={styles.backupButton} onPress={exportBackupFile}>
               <Text style={styles.backupButtonText}>Exportar</Text>
             </Pressable>
-            <Pressable style={styles.backupButton} onPress={importBackupFromClipboard}>
+            <Pressable style={styles.backupButton} onPress={importBackupFromFile}>
               <Text style={styles.backupButtonText}>Importar</Text>
             </Pressable>
             <Pressable style={styles.backupButton} onPress={() => setShowRankTable((previous) => !previous)}>

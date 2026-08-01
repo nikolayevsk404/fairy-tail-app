@@ -25,6 +25,10 @@ export function serializeBackupPayload(
   return JSON.stringify(buildBackupPayload(lotteryState, guildData, exportedAt), null, 2);
 }
 
+export function buildBackupFileName(exportedAt = new Date().toISOString()) {
+  return `fairy-tail-backup-${exportedAt.replace(/[:.]/g, '-')}.json`;
+}
+
 export function normalizeGuildData(data?: Partial<GuildData> | null): GuildData {
   return {
     ...defaultGuildData,

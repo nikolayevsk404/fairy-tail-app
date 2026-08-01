@@ -25,8 +25,9 @@ Acoes globais no topo da tela:
 
 - `AsyncStorage` para salvar `lotteryState` e `guildData`
 - backup completo em JSON
-- importacao de backup via area de transferencia
-- exportacao de backup via compartilhamento nativo
+- importacao de backup via seletor de arquivo JSON
+- exportacao de backup como arquivo JSON via compartilhamento nativo
+- o fluxo de backup nao usa a area de transferencia
 
 ## Estrutura do backup
 
@@ -129,11 +130,14 @@ type Participation = {
 ### Funcionalidades atuais
 
 - criar, editar e excluir collabs
+- confirmar exclusao antes de remover collabs
 - ativar e desativar collabs
 - criar, editar e excluir colaboradores
+- confirmar exclusao antes de remover colaboradores
 - ativar, inativar e reativar colaboradores
 - marcar participacao individual por collab
 - visualizar tabela agrupada por rank
+- exibir apenas colaboradores ativos na lista e na tabela de ranking
 
 ## Aba Awards
 
@@ -208,5 +212,9 @@ type InactiveCollaborator = {
 
 - projeto baseado em `Expo SDK 55`
 - persistencia local offline
-- importacao de backup via `expo-clipboard`
+- `.env` e scripts `start*` definem `EXPO_UNSTABLE_HEADLESS=1` para evitar a inicializacao do shell standalone do React Native DevTools em ambientes sem as bibliotecas nativas exigidas por ele
+- em WSL2, `npm run start:wsl` usa tunnel para evitar URLs com IP interno do Linux que nao sao acessiveis pelo celular na rede Wi-Fi
+- importacao de backup via `expo-document-picker` e leitura com `expo-file-system`
+- exportacao de backup via `expo-file-system` e compartilhamento com `expo-sharing`
+- `expo-clipboard` segue usado apenas para copiar resultados textuais do sorteador
 - compartilhamento nativo para exportacao de backup e resultados

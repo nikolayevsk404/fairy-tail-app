@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Share } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
 
 import { exportBackupPayload, loadGuildData, normalizeGuildData, saveGuildData } from '../storage/lotteryStorage';
+import { buildBackupFileName } from '../utils/backup';
 import { isSameOrAfterDate } from '../utils/dates';
 import { getRankTier } from '../utils/ranking';
 import {
@@ -334,17 +335,35 @@ export function useGuildData() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
-  async function copyBackup(lotteryState: LotteryState) {
+  async function createBackupFile(lotteryState: LotteryState) {
     const payload = await exportBackupPayload(lotteryState, guildData);
-    await Clipboard.setStringAsync(payload);
+    const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+
+    if (!directory) {
+      throw new Error('Diretorio para backup indisponivel.');
+    }
+
+    const fileUri = `${directory}${buildBackupFileName()}`;
+    await FileSystem.writeAsStringAsync(fileUri, payload, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    return fileUri;
   }
 
   async function shareBackup(lotteryState: LotteryState) {
-    const payload = await exportBackupPayload(lotteryState, guildData);
-    await Share.share({
-      title: 'Fairy Tail Art Guild Backup',
-      message: payload,
+    const fileUri = await createBackupFile(lotteryState);
+    const canShare = await Sharing.isAvailableAsync();
+
+    if (!canShare) {
+      throw new Error('Compartilhamento de arquivos indisponivel neste dispositivo.');
+    }
+
+    await Sharing.shareAsync(fileUri, {
+      dialogTitle: 'Exportar backup da guilda',
+      mimeType: 'application/json',
+      UTI: 'public.json',
     });
   }
 
@@ -370,7 +389,7 @@ export function useGuildData() {
     deleteAward,
     upsertAwardCollaborator,
     removeAwardCollaborator,
-    copyBackup,
+    createBackupFile,
     shareBackup,
     replaceGuildData,
   };

@@ -4,7 +4,7 @@ import { DrawMode } from '../utils/types';
 import { theme } from '../utils/theme';
 import { sanitizeDrawMode } from '../utils/lottery';
 
-const options: Array<{ mode: DrawMode; label: string }> = [
+const options: { mode: DrawMode; label: string }[] = [
   { mode: 1, label: '1' },
   { mode: 2, label: '2' },
   { mode: 3, label: '3' },

@@ -33,7 +33,7 @@ export function buildRankingTable(stats: CollaboratorRankStat[]) {
     CollaboratorRankStat[]
   >;
 
-  const sortedStats = [...stats].sort((left, right) => {
+  const sortedStats = stats.filter((item) => item.collaborator.active).sort((left, right) => {
     if (right.participationCount !== left.participationCount) {
       return right.participationCount - left.participationCount;
     }

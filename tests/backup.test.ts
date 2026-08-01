@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildBackupFileName,
   buildBackupPayload,
   defaultGuildData,
   normalizeGuildData,
@@ -34,6 +35,13 @@ test('normalizeGuildData fills missing collections with empty arrays', () => {
   assert.deepEqual(guildData.colabs, []);
   assert.deepEqual(guildData.participations, []);
   assert.deepEqual(guildData.awards, []);
+});
+
+test('buildBackupFileName creates a JSON-safe file name from the export date', () => {
+  assert.equal(
+    buildBackupFileName('2026-05-05T12:34:56.789Z'),
+    'fairy-tail-backup-2026-05-05T12-34-56-789Z.json'
+  );
 });
 
 test('buildBackupPayload and serializeBackupPayload preserve the main data', () => {

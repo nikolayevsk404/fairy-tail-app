@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { buildRankingTable, getRankTier, rankOrder } from '../utils/ranking';
 import { Collaborator } from '../utils/types';
 
-function createCollaborator(id: string, name: string): Collaborator {
+function createCollaborator(id: string, name: string, active = true): Collaborator {
   return {
     id,
     name,
-    active: true,
+    active,
     entryDate: '05/05/2026',
     createdAt: '2026-05-05T00:00:00.000Z',
   };
@@ -45,4 +45,18 @@ test('buildRankingTable groups by rank and sorts by highest participation first'
     ['Alice', 'Bianca']
   );
   assert.equal(table.S[0]?.collaborator.name, 'Ester');
+});
+
+test('buildRankingTable does not include inactive collaborators', () => {
+  const stats = [
+    { collaborator: createCollaborator('1', 'Ativa'), participationCount: 7, rank: getRankTier(7) },
+    { collaborator: createCollaborator('2', 'Inativa', false), participationCount: 10, rank: getRankTier(10) },
+  ];
+
+  const table = buildRankingTable(stats);
+
+  assert.deepEqual(
+    rankOrder.flatMap((rank) => table[rank].map((item) => item.collaborator.name)),
+    ['Ativa']
+  );
 });

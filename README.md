@@ -13,8 +13,8 @@ O app hoje concentra quatro areas principais:
 
 No topo da tela existem tres acoes globais:
 
-- `Exportar`: compartilha o backup completo em JSON
-- `Importar`: restaura um backup a partir da area de transferencia
+- `Exportar`: gera um arquivo JSON de backup e abre o compartilhamento nativo
+- `Importar`: restaura um backup a partir de um arquivo JSON selecionado no dispositivo
 - `Exibir ranks`: abre ou fecha a tabela visual de ranks
 
 ## Estilo da app
@@ -29,10 +29,10 @@ A interface atual segue uma direcao visual bem definida:
 
 Referencias centrais dessa identidade:
 
-- [utils/theme.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/utils/theme.ts:1)
-- [components/MagicalBackground.tsx](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/components/MagicalBackground.tsx:1)
-- [components/GlassCard.tsx](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/components/GlassCard.tsx:1)
-- [components/HeaderBanner.tsx](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/components/HeaderBanner.tsx:1)
+- [utils/theme.ts](utils/theme.ts)
+- [components/MagicalBackground.tsx](components/MagicalBackground.tsx)
+- [components/GlassCard.tsx](components/GlassCard.tsx)
+- [components/HeaderBanner.tsx](components/HeaderBanner.tsx)
 
 ## Funcionalidades atuais
 
@@ -49,9 +49,11 @@ Referencias centrais dessa identidade:
 
 - CRUD de `colabs`
 - CRUD de `collaborators`
+- exclusao de collabs e colaboradores com confirmacao
 - ativacao e desativacao de collabs
 - controle de participacao por colaborador em cada collab
 - rank calculado automaticamente por numero de participacoes
+- lista e tabela visual exibem apenas colaboradores ativos
 - tabela visual agrupada por rank e ordenada por participacao
 
 ### Awards
@@ -71,9 +73,10 @@ Referencias centrais dessa identidade:
 
 ### Backup
 
-- exporta `lotteryState` e `guildData` em JSON
-- importa backup pela area de transferencia
+- exporta `lotteryState` e `guildData` em um arquivo JSON
+- importa backup a partir de um arquivo JSON selecionado com o seletor de documentos do dispositivo
 - aceita restauracao parcial de `lotteryState` e/ou `guildData`
+- nao usa a area de transferencia para importacao/exportacao de backup
 
 Formato:
 
@@ -94,7 +97,7 @@ Formato:
 - `A`: 7 a 9 collabs
 - `S`: 10 ou mais collabs
 
-Implementacao em [utils/ranking.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/utils/ranking.ts:1).
+Implementacao em [utils/ranking.ts](utils/ranking.ts).
 
 ## Estrutura
 
@@ -114,11 +117,11 @@ package.json
 
 Arquivos mais importantes:
 
-- [screens/HomeScreen.tsx](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/screens/HomeScreen.tsx:1): tela principal e navegacao por abas
-- [hooks/useFairyTailDraw.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/hooks/useFairyTailDraw.ts:1): regras do sorteador
-- [hooks/useGuildData.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/hooks/useGuildData.ts:1): estado da guilda, awards, ranking, backup e banimento
-- [storage/lotteryStorage.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/storage/lotteryStorage.ts:1): persistencia local
-- [utils/types.ts](/Users/pc59/Projects/nikolayevsk/fairy-tail-art-guild/utils/types.ts:1): contratos centrais
+- [screens/HomeScreen.tsx](screens/HomeScreen.tsx): tela principal e navegacao por abas
+- [hooks/useFairyTailDraw.ts](hooks/useFairyTailDraw.ts): regras do sorteador
+- [hooks/useGuildData.ts](hooks/useGuildData.ts): estado da guilda, awards, ranking, backup e banimento
+- [storage/lotteryStorage.ts](storage/lotteryStorage.ts): persistencia local
+- [utils/types.ts](utils/types.ts): contratos centrais
 
 ## Rodar localmente
 
@@ -133,6 +136,8 @@ Desenvolvimento:
 ```bash
 npx expo start
 ```
+
+O projeto define `EXPO_UNSTABLE_HEADLESS=1` em [.env](.env) e nos scripts de desenvolvimento para impedir que o React Native tente iniciar o shell standalone do DevTools. Em alguns ambientes Linux esse shell falha por bibliotecas nativas ausentes, como `libnspr4.so`, mesmo com o Metro funcionando normalmente.
 
 Scripts disponiveis:
 
@@ -154,8 +159,8 @@ npm test
 A suite atual cobre:
 
 - regras do sorteador
-- geracao, serializacao e validacao de backup
-- calculo e ordenacao de ranking
+- geracao, nome de arquivo, serializacao e validacao de backup
+- calculo, ordenacao e filtro de inativos no ranking
 
 Execucao:
 
@@ -163,9 +168,30 @@ Execucao:
 npm test
 ```
 
-Status verificado neste workspace: `11` testes passando.
+Status verificado neste workspace: `npm test` passando.
 
 ## Rodar no celular
+
+### Usando WSL2
+
+Em WSL2, prefira tunnel:
+
+```bash
+npm run start:wsl
+```
+
+O WSL2 roda em uma rede virtual propria. Por isso, `npx expo start` ou `npm run start:lan` podem mostrar um IP interno do Linux que o celular nao consegue acessar pela Wi-Fi.
+
+Se quiser usar LAN mesmo assim:
+
+1. Descubra o IPv4 do Windows com `ipconfig` no PowerShell.
+2. Rode no WSL substituindo pelo IP do Windows:
+
+```bash
+REACT_NATIVE_PACKAGER_HOSTNAME=192.168.0.10 npm run start:lan
+```
+
+3. Garanta que celular e Windows estejam na mesma rede, sem VPN, e que o firewall permita conexoes para Node/Expo.
 
 Se o app ficar preso no loading do Expo Go:
 
@@ -236,7 +262,10 @@ eas build -p android --profile production
 - `@react-native-async-storage/async-storage`
 - `expo-blur`
 - `expo-clipboard`
+- `expo-document-picker`
+- `expo-file-system`
 - `expo-haptics`
 - `expo-linear-gradient`
+- `expo-sharing`
 - `react-native-gesture-handler`
 - `react-native-safe-area-context`
